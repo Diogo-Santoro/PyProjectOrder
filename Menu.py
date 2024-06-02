@@ -1,119 +1,111 @@
 import sqlite3
+import tkinter as tk
+from tkinter import messagebox, simpledialog
 from Create import create_order
 from Read import read_orders
 from Update import update_order
 from Delete import delete_order
 
-def authenticate():
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
+class OrderManagementApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Sistema de Gerenciamento de Pedidos")
 
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-                        username TEXT PRIMARY KEY,
-                        password TEXT,
-                        role TEXT
-                    )''')
+        self.main_menu = tk.Frame(root)
+        self.main_menu.pack()
 
-    cursor.execute("SELECT * FROM users WHERE username='admin'")
-    if cursor.fetchone() is None:
-        cursor.execute("INSERT INTO users (username, password, role) VALUES ('admin', 'admin', 'admin')")
+        self.login_menu()
 
-    conn.commit()
+    def login_menu(self):
+        self.clear_frame()
 
-    username = input("Username: ")
-    password = input("Password: ")
+        tk.Label(self.main_menu, text="Sistema de Gerenciamento de Pedidos", font=('Helvetica', 16, 'bold')).pack(pady=20)
+        tk.Button(self.main_menu, text="Login", command=self.login).pack(pady=10)
+        tk.Button(self.main_menu, text="Registrar", command=self.register).pack(pady=10)
+        tk.Button(self.main_menu, text="Sair", command=self.root.quit).pack(pady=10)
 
-    cursor.execute("SELECT role FROM users WHERE username = ? AND password = ?", (username, password))
-    user = cursor.fetchone()
+    def clear_frame(self):
+        for widget in self.main_menu.winfo_children():
+            widget.destroy()
 
-    conn.close()
+    def login(self):
+        username = simpledialog.askstring("Login", "Username:")
+        password = simpledialog.askstring("Login", "Password:", show='*')
 
-    if user:
-        return user[0]
-    else:
-        print("Usuário ou senha incorretos.")
-        return None
-
-def register():
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-                        username TEXT PRIMARY KEY,
-                        password TEXT,
-                        role TEXT
-                    )''')
-
-    username = input("Escolha um nome de usuário: ")
-    password = input("Escolha uma senha: ")
-    role = input("Escolha o cargo (admin/user/cliente): ").lower()
-
-    if role not in ('admin', 'user', 'cliente'):
-        print("Cargo inválido. Tente novamente.")
-        return
-
-    try:
-        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, password, role))
-        conn.commit()
-        print("Usuário registrado com sucesso!")
-    except sqlite3.IntegrityError:
-        print("Nome de usuário já existe. Tente novamente.")
-
-    conn.close()
-
-def menu():
-    while True:
-        print("\nSistema de Gerenciamento de Pedidos")
-        print("1. Login")
-        print("2. Registrar")
-        print("3. Sair")
-        
-        choice = input("Escolha uma opção: ")
-        
-        if choice == '1':
-            role = authenticate()
-            if role:
-                user_menu(role)
-        elif choice == '2':
-            register()
-        elif choice == '3':
-            break
+        role = self.authenticate(username, password)
+        if role:
+            self.user_menu(role)
         else:
-            print("Opção inválida. Tente novamente.")
+            messagebox.showerror("Erro", "Usuário ou senha incorretos.")
 
-def user_menu(role):
-    while True:
-        print("\nMenu de Opções")
-        print("1. Criar Pedido" if role == 'admin' or role == 'user' else "1. Listar Pedidos")
+    def authenticate(self, username, password):
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+
+        cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                            username TEXT PRIMARY KEY,
+                            password TEXT,
+                            role TEXT
+                        )''')
+
+        cursor.execute("SELECT * FROM users WHERE username='admin'")
+        if cursor.fetchone() is None:
+            cursor.execute("INSERT INTO users (username, password, role) VALUES ('admin', 'admin', 'admin')")
+
+        conn.commit()
+
+        cursor.execute("SELECT role FROM users WHERE username = ? AND password = ?", (username, password))
+        user = cursor.fetchone()
+
+        conn.close()
+
+        if user:
+            return user[0]
+        else:
+            return None
+
+    def register(self):
+        username = simpledialog.askstring("Registrar", "Escolha um nome de usuário:")
+        password = simpledialog.askstring("Registrar", "Escolha uma senha:", show='*')
+        role = simpledialog.askstring("Registrar", "Escolha o cargo (admin/user/cliente):").lower()
+
+        if role not in ('admin', 'user', 'cliente'):
+            messagebox.showerror("Erro", "Cargo inválido. Tente novamente.")
+            return
+
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+
+        cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                            username TEXT PRIMARY KEY,
+                            password TEXT,
+                            role TEXT
+                        )''')
+
+        try:
+            cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, password, role))
+            conn.commit()
+            messagebox.showinfo("Sucesso", "Usuário registrado com sucesso!")
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Erro", "Nome de usuário já existe. Tente novamente.")
+
+        conn.close()
+
+    def user_menu(self, role):
+        self.clear_frame()
+
+        tk.Label(self.main_menu, text="Menu de Opções", font=('Helvetica', 16, 'bold')).pack(pady=20)
         if role == 'admin' or role == 'user':
-            print("2. Listar Pedidos")
-            print("3. Atualizar Pedido")
-            print("4. Deletar Pedido")
-        elif role == 'user' or role == 'cliente':
-            print("2. Sair")
+            tk.Button(self.main_menu, text="Criar Pedido", command=create_order).pack(pady=10)
+            tk.Button(self.main_menu, text="Listar Pedidos", command=read_orders).pack(pady=10)
+            tk.Button(self.main_menu, text="Atualizar Pedido", command=update_order).pack(pady=10)
+            tk.Button(self.main_menu, text="Deletar Pedido", command=delete_order).pack(pady=10)
+        elif role == 'cliente':
+            tk.Button(self.main_menu, text="Listar Pedidos", command=read_orders).pack(pady=10)
 
-        choice = input("Escolha uma opção: ")
-
-        if role == 'admin' or role == 'user':
-            if choice == '1':
-                create_order()
-            elif choice == '2':
-                read_orders()
-            elif choice == '3':
-                update_order()
-            elif choice == '4':
-                delete_order()
-            elif choice == '5':
-                break
-            else:
-                print("Opção inválida. Tente novamente.")
-        elif role == 'user' or role == 'cliente':
-            if choice == '1':
-                read_orders()
-            elif choice == '2':
-                break
-            else:
-                print("Opção inválida. Tente novamente.")
+        tk.Button(self.main_menu, text="Sair", command=self.login_menu).pack(pady=10)
 
 if __name__ == "__main__":
-    menu()
+    root = tk.Tk()
+    app = OrderManagementApp(root)
+    root.mainloop()
